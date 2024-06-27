@@ -11,10 +11,7 @@ import { StreamConfigPanelComponent } from './stream-config-panel.component';
           class="col flex align-items-center justify-content-center "
           style="width:100%; padding:1rem;"
         >
-          <app-stream-config-panel
-            (localVideo)="setLocalVideo($event)"
-            (remoteVideo)="setRemoteVideo($event)"
-          />
+          <app-stream-config-panel />
         </div>
       </ng-template>
       <ng-template pTemplate>
@@ -53,7 +50,6 @@ export class StreamConfigComponent {
 
   setRemoteVideo(stream: MediaStream) {
     this.remoteVideo.set(stream);
-    console.log('test stream', stream);
     this.remoteVideoPlayer()!.srcObject = stream;
   }
 }

@@ -1,10 +1,4 @@
-import {
-  Component,
-  inject,
-  output,
-  ViewChild,
-  ElementRef,
-} from '@angular/core';
+import { Component, inject, ViewChild, ElementRef } from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -18,7 +12,6 @@ import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
-import { InputTextareaModule } from 'primeng/inputtextarea';
 import { NgIf } from '@angular/common';
 
 @Component({
@@ -84,10 +77,10 @@ import { NgIf } from '@angular/common';
     </p-fieldset>
 
     <video
-      id="remoteVideo"
+      #videoElement
       autoplay
-      #remoteVideoPlayer
-      style="width:200px;height:200px"
+      playsinline
+      style="with:200px;height:200px"
     ></video>
   `,
   standalone: true,
@@ -99,7 +92,6 @@ import { NgIf } from '@angular/common';
     InputSwitchModule,
     ButtonModule,
     RippleModule,
-    InputTextareaModule,
     NgIf,
   ],
   styles: [
@@ -140,12 +132,11 @@ import { NgIf } from '@angular/common';
   ],
 })
 export class StreamConfigPanelComponent {
-  @ViewChild('remoteVideoPlayer')
-  remoteVideoPlayer!: ElementRef<HTMLVideoElement>;
+  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
   form = new FormGroup({
     apiKey: new FormControl<string>(
-      'Yldsc1lXNXRaWGxpWlhKblFHZHRZV2xzTG1OdmJROmpiTGtwZU4wV2NSLVdNX0QzUmNxOQ==',
+      'bWlsYW5tZXliZXJnQGdtYWlsLmNvbQ:jbLkpeN0WcR-WM_D3Rcq9',
       [Validators.required]
     ),
     stream_warmup: new FormControl<boolean>(false, [Validators.required]),
@@ -159,30 +150,18 @@ export class StreamConfigPanelComponent {
     talkText: new FormControl<string>('', [Validators.required]),
   });
 
-  localStream!: MediaStream;
-  remoteStream!: MediaStream;
-  peerConnection!: RTCPeerConnection;
-  configuration!: RTCConfiguration;
   streamId!: string;
   sessionId!: string;
 
   service = inject(SignalService);
 
-  localVideo = output<MediaStream>();
-  remoteVideo = output<MediaStream>();
-
   async submit() {
     console.log(this.form.value);
     if (this.form.valid) {
-      const { apiKey, source_url, stream_warmup } = this.form.value;
+      const { source_url } = this.form.value;
 
       try {
-        const streamData = await this.service.createStream(
-          'https://api.d-id.com/talks/streams',
-          apiKey!,
-          source_url!,
-          stream_warmup!
-        );
+        const streamData = await this.service.createStream(source_url!);
         const {
           offer,
           ice_servers,
@@ -193,47 +172,13 @@ export class StreamConfigPanelComponent {
         this.streamId = streamId;
         this.sessionId = sessionId;
 
-        this.configuration = {
-          iceServers: ice_servers,
-        };
-
-        this.peerConnection = new RTCPeerConnection(this.configuration);
-        this.peerConnection.onicecandidate = async ({ candidate }) => {
-          if (candidate) {
-            try {
-              await this.service.sendIceCandidate(
-                'https://api.d-id.com/talks/streams',
-                apiKey!,
-                streamId,
-                candidate,
-                sessionId
-              );
-            } catch (error) {
-              console.error('Error sending ICE candidate:', error);
-            }
-          }
-        };
-
-        this.peerConnection.ontrack = (event) => {
-          this.remoteStream = event.streams[0];
-          this.remoteVideo.emit(this.remoteStream);
-          console.log('Remote stream:', this.remoteStream);
-          this.remoteVideoPlayer.nativeElement.srcObject = this.remoteStream;
-        };
-
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(offer)
+        this.service.initializeVideoElement(this.videoElement.nativeElement);
+        const answer = await this.service.createPeerConnection(
+          offer,
+          ice_servers
         );
-        const answer = await this.peerConnection.createAnswer();
-        await this.peerConnection.setLocalDescription(answer);
 
-        await this.service.sendAnswer(
-          'https://api.d-id.com/talks/streams',
-          apiKey!,
-          streamId,
-          answer,
-          sessionId
-        );
+        await this.service.sendAnswer(answer);
       } catch (error) {
         console.error('Error during WebRTC initialization:', error);
       }
@@ -246,47 +191,13 @@ export class StreamConfigPanelComponent {
       return;
     }
 
-    const { apiKey } = this.form.value;
     const { talkText } = this.talkForm.value;
 
     try {
-      const talkData = await this.service.createTalk(
-        'https://api.d-id.com/talks/streams',
-        apiKey!,
-        this.streamId,
-        this.sessionId,
-        talkText!,
-        this.form.value.source_url!
-      );
+      const talkData = await this.service.createTalk(talkText!);
       console.log('Talk created:', talkData);
     } catch (error) {
       console.error('Error creating talk:', error);
-    }
-
-    this.talkForm.reset();
-  }
-
-  async handleSignalingData(data: any) {
-    switch (data.type) {
-      case 'offer':
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(data.offer)
-        );
-        const answer = await this.peerConnection.createAnswer();
-        await this.peerConnection.setLocalDescription(answer);
-        break;
-      case 'answer':
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(data.answer)
-        );
-        break;
-      case 'candidate':
-        if (data.candidate) {
-          await this.peerConnection.addIceCandidate(
-            new RTCIceCandidate(data.candidate)
-          );
-        }
-        break;
     }
   }
 }
