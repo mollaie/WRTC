@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { API_KEY, API_URL } from '../../../config';
 
 @Injectable({
   providedIn: 'root',
@@ -11,9 +12,9 @@ export class SignalService {
   private sessionId!: string;
 
   private DID_API = {
-    url: 'https://api.d-id.com',
+    url: API_URL || '',
     service: 'talks',
-    key: 'bWlsYW5tZXliZXJnQGdtYWlsLmNvbQ:jbLkpeN0WcR-WM_D3Rcq9',
+    key: API_KEY || '',
   };
 
   initializeVideoElement(videoElement: HTMLVideoElement) {

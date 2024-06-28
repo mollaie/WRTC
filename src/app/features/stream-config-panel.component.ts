@@ -13,6 +13,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { NgIf } from '@angular/common';
+import { API_KEY } from '../../../config';
 
 @Component({
   selector: 'app-stream-config-panel',
@@ -135,10 +136,7 @@ export class StreamConfigPanelComponent {
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
   form = new FormGroup({
-    apiKey: new FormControl<string>(
-      'bWlsYW5tZXliZXJnQGdtYWlsLmNvbQ:jbLkpeN0WcR-WM_D3Rcq9',
-      [Validators.required]
-    ),
+    apiKey: new FormControl<string>(API_KEY || '', [Validators.required]),
     stream_warmup: new FormControl<boolean>(false, [Validators.required]),
     source_url: new FormControl<string>(
       'https://clips-presenters.d-id.com/alyssa/fIa7P15FTv/PWEobsgYC8/thumbnail.png',
