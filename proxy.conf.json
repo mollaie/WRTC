@@ -1,0 +1,21 @@
+{
+  "/proxy": {
+    "target": "http://127.0.0.1:9000",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/proxy": ""
+    }
+  },
+  "/api": {
+    "target": "https://api.d-id.com",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api": ""
+    },
+    "headers": {
+      "Authorization": "Basic {YOUR_BASE64_ENCODED_API_KEY}"
+    }
+  }
+}

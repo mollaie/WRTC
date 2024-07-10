@@ -6,7 +6,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { FieldsetModule } from 'primeng/fieldset';
-import { SignalService } from './signal.service';
+import { SignalService } from '../services/signal.service';
 import { InputTextModule } from 'primeng/inputtext';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputSwitchModule } from 'primeng/inputswitch';

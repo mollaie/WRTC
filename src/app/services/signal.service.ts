@@ -174,7 +174,6 @@ export class SignalService {
 
   async createTalk(talkText: string) {
     const response = await fetch(
-      //`${this.DID_API.url}/agents/${this.streamId}/chat/${this.sessionId}`,
       `${this.DID_API.url}/talks/streams/${this.streamId}`,
       {
         method: 'POST',
