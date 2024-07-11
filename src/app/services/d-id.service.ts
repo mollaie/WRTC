@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { API_KEY } from '../../../config';
+import { API_KEY, VF_API_KEY, VF_VERSION } from '../../../config';
 import { BehaviorSubject, Observable } from 'rxjs';
 import axios from 'axios';
 
@@ -11,8 +11,8 @@ export class DIDService {
   private dataChannel!: RTCDataChannel;
   private streamId!: string;
   private sessionId!: string;
-  private agentId!: string;
-  private chatId!: string;
+  // private agentId!: string;
+  // private chatId!: string;
   private videoStreamSubject = new BehaviorSubject<MediaStream | null>(null);
 
   private DID_API = {
@@ -20,6 +20,13 @@ export class DIDService {
     key: API_KEY,
     service: 'talks',
   };
+
+  private VOICEFLOW_API = {
+    url: 'https://general-runtime.voiceflow.com/state',
+    key: VF_API_KEY,
+    version: VF_VERSION,
+    userId: 'Bosland-user'
+  }
 
   private sourceUrl =
     'https://i.ibb.co/HhRWmvs/Bosland-Env-Ai-Avatar-V5-min-compressed.jpg';
@@ -34,15 +41,12 @@ export class DIDService {
 
   async initializeStream(): Promise<void> {
     try {
-      console.log('Starting agent workflow...');
-      const { agentId, chatId } = await this.agentsAPIworkflow();
-      this.agentId = agentId;
-      this.chatId = chatId;
-      console.log(`Agent ID: ${agentId}, Chat ID: ${chatId}`);
 
       console.log('Initializing stream...');
       await this.connectToStream();
       console.log('Stream initialization complete');
+      console.log(this.sessionId);
+
     } catch (error) {
       console.error('Error initializing stream:', error);
       if (error instanceof Error) {
@@ -54,12 +58,6 @@ export class DIDService {
   }
 
   private async connectToStream() {
-    if (!this.agentId) {
-      alert(
-        "1. Click on the 'Create new Agent with Knowledge' button\n2. Open the Console and wait for the process to complete\n3. Press on the 'Connect' button\n4. Type and send a message to the chat\nNOTE: You can store the created 'agentID' and 'chatId' variables at the bottom of the JS file for future chats"
-      );
-      return;
-    }
 
     if (
       this.peerConnection &&
@@ -239,188 +237,82 @@ export class DIDService {
     }
   }
 
-  private async createKnowledgeBase() {
-    const response = await axios.post(
-      `${this.DID_API.url}/knowledge`,
-      {
-        name: 'knowledge',
-        description: 'D-ID Agents API',
-      },
-      {
-        headers: this.getHeaders(),
-      }
-    );
+  // async makeItTalk(messageText :string) {
+  //     console.log(`Sending message ${messageText}`)
+  //     const reply:string = await this.callVoiceFlowAPI(messageText);
+  //     console.log(`reply received ${reply}`)
+  //     this.sendMessageToChat(reply);
+  // }
 
-    if (response.status !== 200) {
-      throw new Error(
-        `Failed to create knowledge base: ${response.statusText}`
-      );
-    }
-
-    return response.data.id;
-  }
-
-  private async addDocumentToKnowledgeBase(knowledgeId: string) {
-    const response = await axios.post(
-      `${this.DID_API.url}/knowledge/${knowledgeId}/documents`,
-      {
-        documentType: 'pdf',
-        source_url:
-          'https://d-id-public-bucket.s3.us-west-2.amazonaws.com/Prompt_engineering_Wikipedia.pdf',
-        title: 'Prompt Engineering Wikipedia Page PDF',
-      },
-      {
-        headers: this.getHeaders(),
-      }
-    );
-
-    if (response.status !== 200) {
-      throw new Error(
-        `Failed to add document to knowledge base: ${response.statusText}`
-      );
-    }
-
-    return response.data.id.split('#')[1];
-  }
-
-  private async checkKnowledgeStatus(knowledgeId: string, documentId: string) {
-    const maxRetryCount = 5;
-    const maxDelaySec = 10;
-
-    const retry = async (url: string, retries = 1): Promise<void> => {
+  async sendMessageToChat(messageText: string): Promise<void> {
       try {
-        const response = await axios.get(url, {
-          headers: this.getHeaders(),
-        });
-        if (response.data.status !== 'done') {
-          throw new Error("Status is not 'done'");
-        }
-      } catch (err) {
-        if (retries <= maxRetryCount) {
-          const delay =
-            Math.min(Math.pow(2, retries) / 4 + Math.random(), maxDelaySec) *
-            1000;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          console.log(`Retrying ${retries}/${maxRetryCount}. ${err}`);
-          return retry(url, retries + 1);
-        } else {
-          throw new Error(`Max retries exceeded. error: ${err}`);
-        }
-      }
-    };
-
-    await retry(
-      `${this.DID_API.url}/knowledge/${knowledgeId}/documents/${documentId}`
-    );
-    await retry(`${this.DID_API.url}/knowledge/${knowledgeId}`);
-  }
-
-  private async createAgent(knowledgeId: string) {
-    const response = await axios.post(
-      `${this.DID_API.url}/agents`,
-      {
-        knowledge: {
-          provider: 'pinecone',
-          embedder: {
-            provider: 'pinecone',
-            model: 'ada02',
-          },
-          id: knowledgeId,
-        },
-        presenter: {
-          type: 'talk',
-          voice: {
-            type: 'microsoft',
-            voice_id: 'en-US-JennyMultilingualV2Neural',
-          },
-          thumbnail: this.sourceUrl,
-          source_url: this.sourceUrl,
-        },
-        llm: {
-          type: 'openai',
-          provider: 'openai',
-          model: 'gpt-3.5-turbo-1106',
-          instructions:
-            'Your name is Emma, an AI designed to assist with information about Prompt Engineering and RAG',
-        },
-        preview_name: 'Emma',
-      },
-      {
-        headers: this.getHeaders(),
-      }
-    );
-
-    if (response.status !== 200) {
-      throw new Error(`Failed to create agent: ${response.statusText}`);
-    }
-
-    return response.data.id;
-  }
-
-  private async createChatSession(agentId: string) {
-    const response = await axios.post(
-      `${this.DID_API.url}/agents/${agentId}/chat`,
-      {},
-      {
-        headers: this.getHeaders(),
-      }
-    );
-
-    if (response.status !== 200) {
-      throw new Error(`Failed to create chat session: ${response.statusText}`);
-    }
-
-    return response.data.id;
-  }
-
-  private async agentsAPIworkflow() {
-    try {
-      const knowledgeId = await this.createKnowledgeBase();
-      const documentId = await this.addDocumentToKnowledgeBase(knowledgeId);
-      await this.checkKnowledgeStatus(knowledgeId, documentId);
-      const agentId = await this.createAgent(knowledgeId);
-      const chatId = await this.createChatSession(agentId);
-      return { agentId, chatId };
-    } catch (error) {
-      console.error('Error in agentsAPIworkflow:', error);
-      throw error;
-    }
-  }
-
-  async sendMessageToAgent(messageText: string): Promise<void> {
-    try {
-      const response = await this.fetchWithRetries(
-        `${this.DID_API.url}/agents/${this.agentId}/chat/${this.chatId}`,
-        {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify({
-            streamId: this.streamId,
-            sessionId: this.sessionId,
-            messages: [
-              {
-                role: 'user',
-                content: messageText,
-                created_at: new Date().toISOString(),
+        const response = await this.fetchWithRetries(
+          `${this.DID_API.url}/talks/streams/${this.streamId}`,
+          {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({
+              
+              script: {
+                type: "text",
+                provider: {
+                  type: "microsoft",
+                  voice_id: "en-US-JennyNeural"
+                },
+                ssml: "false",
+                input: messageText
               },
-            ],
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', response.status, errorText);
-        throw new Error(
-          `HTTP error! status: ${response.status}, body: ${errorText}`
+              config: {
+                fluent: "false",
+                pad_audio: "0.0"
+              },
+              audio_optimization: "2",
+              session_id: this.sessionId,
+            }),
+          }
         );
+  
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', response.status, errorText);
+          throw new Error(
+            `HTTP error! status: ${response.status}, body: ${errorText}`
+          );
+        }
+  
+        const data = await response.json();
+        console.log('Message sent successfully:', data);
+      } catch (error) {
+        console.error('Error sending message to agent:', error);
+        throw error;
       }
-
-      const data = await response.json();
-      console.log('Message sent successfully:', data);
-    } catch (error) {
-      console.error('Error sending message to agent:', error);
-      throw error;
     }
-  }
+
+    async callVoiceFlowAPI(questionText: string){
+      const requestData = {
+        request: {
+          type: 'text',
+          payload: questionText
+        }
+      };
+
+      console.log('Calling voiceflow')
+      fetch(`${this.VOICEFLOW_API.url}/${this.VOICEFLOW_API.version}/user/${this.VOICEFLOW_API.userId}/interact`, {
+        method: 'POST',
+        headers: {
+          'Authorization': this.VOICEFLOW_API.key,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Success:', data[1].payload.message);
+          this.sendMessageToChat(data[1].payload.message)
+        })
+        .catch(error => {
+          console.error('Error in voiceflow:', error);
+        });
+    }
+
 }

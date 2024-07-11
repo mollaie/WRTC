@@ -354,7 +354,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.errorMessage = '';
 
       try {
-        await this.didService.sendMessageToAgent(messageText);
+        await this.didService.callVoiceFlowAPI(messageText);
         this.messages.push({
           isMe: false,
           text: 'Message sent to agent',
