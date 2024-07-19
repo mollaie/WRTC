@@ -19,6 +19,7 @@ export class DIDService {
 
   private VOICEFLOW_API = {
     url: 'https://general-runtime.voiceflow.com/state',
+    second_url: 'https://general-runtime.voiceflow.com/interact',
     key: VF_API_KEY,
     version: VF_VERSION,
     userId: 'Bosland-user',
@@ -297,7 +298,8 @@ export class DIDService {
 
     console.log('Calling voiceflow');
     fetch(
-      `${this.VOICEFLOW_API.url}/${this.VOICEFLOW_API.version}/user/${this.VOICEFLOW_API.userId}/interact`,
+      //`${this.VOICEFLOW_API.url}/${this.VOICEFLOW_API.version}/user/${this.VOICEFLOW_API.userId}/interact`,
+      `${this.VOICEFLOW_API.second_url}/${this.VOICEFLOW_API.version}`,
       {
         method: 'POST',
         headers: {
@@ -309,8 +311,10 @@ export class DIDService {
     )
       .then((response) => response.json())
       .then((data) => {
-        console.log('Success:', data[1].payload.message);
-        this.sendMessageToChat(data[1].payload.message);
+        // console.log('Success:', data[1].payload.message);
+        // this.sendMessageToChat(data[1].payload.message);
+        console.log('Success:', data['state']['variables']['last_response']);
+        this.sendMessageToChat(data['state']['variables']['last_response']);
       })
       .catch((error) => {
         console.error('Error in voiceflow:', error);
