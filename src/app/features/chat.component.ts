@@ -20,7 +20,7 @@ import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { Subscription } from 'rxjs';
 import { AudioService } from '../services/audio.service';
-import { DIDService } from '../services/d-id.service';
+import { OldDIDService } from '../services/old-d-id.service';
 
 export interface Message {
   isMe: boolean;
@@ -109,138 +109,6 @@ export interface Message {
     FormsModule,
     ProgressSpinnerModule,
   ],
-  styles: [
-    `
-      :host {
-        .chat-container {
-          display: flex;
-          height: 100vh;
-          overflow: hidden;
-        }
-
-        .video-section {
-          flex: 2;
-          padding: 10px;
-          background-color: #f0f0f0;
-        }
-
-        img,
-        video {
-          width: 40vw;
-          height: 100vh;
-        }
-
-        .video-player {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .chat-section {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          padding: 10px;
-          background-color: #ffffff;
-          border-left: 1px solid #e0e0e0;
-        }
-
-        .message-container {
-          flex: 1;
-          overflow-y: auto;
-          padding: 10px;
-        }
-
-        .message {
-          margin-bottom: 10px;
-          padding: 8px 12px;
-          border-radius: 8px;
-          max-width: 80%;
-        }
-
-        .my-message {
-          background-color: #dcf8c6;
-          align-self: flex-end;
-          margin-left: auto;
-        }
-
-        .other-message {
-          background-color: #e5e5ea;
-          align-self: flex-start;
-        }
-
-        .message-time {
-          font-size: 0.8em;
-          color: #888;
-          display: block;
-          text-align: right;
-          margin-top: 4px;
-        }
-
-        .input-container {
-          display: flex;
-          flex-direction: column;
-          padding: 10px;
-          background-color: #f9f9f9;
-          border-top: 1px solid #e0e0e0;
-        }
-
-        .button-container {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 10px;
-        }
-
-        .transcription-result {
-          margin-top: 10px;
-          padding: 5px;
-          background-color: #e6f7ff;
-          border-radius: 4px;
-        }
-
-        @media (max-width: 768px) {
-          .chat-container {
-            flex-direction: column;
-          }
-
-          .video-section,
-          .chat-section {
-            flex: none;
-            width: 100%;
-          }
-
-          .video-section {
-            height: 100vh;
-          }
-
-          .chat-section {
-            height: 60vh;
-          }
-        }
-
-        video {
-          /* display: block; */
-          background-image: url('https://i.ibb.co/HhRWmvs/Bosland-Env-Ai-Avatar-V5-min-compressed.jpg');
-          background-position: top;
-          /* position: absolute; */
-          background-size: cover;
-        }
-
-        .animated {
-          animation: opacityAnimation 0.2s ease-in-out;
-        }
-
-        @keyframes opacityAnimation {
-          from {
-            opacity: 0.8;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-      }
-    `,
-  ],
 })
 export class ChatComponent implements OnInit, OnDestroy {
   @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
@@ -258,7 +126,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   constructor(
     private audioService: AudioService,
-    private didService: DIDService,
+    private didService: OldDIDService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -354,7 +222,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.errorMessage = '';
 
       try {
-        await this.didService.sendMessageToAgent(messageText);
+        await this.didService.callVoiceFlowAPI(messageText);
         this.messages.push({
           isMe: false,
           text: 'Message sent to agent',

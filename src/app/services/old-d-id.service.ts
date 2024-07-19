@@ -1,15 +1,18 @@
 import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { API_KEY, VF_API_KEY, VF_VERSION } from '../../../config';
-import { SharedService } from './shared.service';
-import { firstValueFrom, take } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
-export class DIDService {
+export class OldDIDService {
   private peerConnection!: RTCPeerConnection;
   private dataChannel!: RTCDataChannel;
-  private currentVideoStream: MediaStream | null = null;
+  private streamId!: string;
+  private sessionId!: string;
+  // private agentId!: string;
+  // private chatId!: string;
+  private videoStreamSubject = new BehaviorSubject<MediaStream | null>(null);
 
   private DID_API = {
     url: 'https://api.d-id.com',
@@ -27,8 +30,6 @@ export class DIDService {
   private sourceUrl =
     'https://i.ibb.co/HhRWmvs/Bosland-Env-Ai-Avatar-V5-min-compressed.jpg';
 
-  constructor(private sharedService: SharedService) {}
-
   private getHeaders(): Record<string, string> {
     return {
       accept: 'application/json',
@@ -38,18 +39,11 @@ export class DIDService {
   }
 
   async initializeStream(): Promise<void> {
-    const streamInitialized = await firstValueFrom(
-      this.sharedService.streamInitialized$
-    );
-    if (streamInitialized) {
-      console.log('Stream already initialized');
-      return;
-    }
-
     try {
       console.log('Initializing stream...');
       await this.connectToStream();
       console.log('Stream initialization complete');
+      console.log(this.sessionId);
     } catch (error) {
       console.error('Error initializing stream:', error);
       if (error instanceof Error) {
@@ -72,62 +66,50 @@ export class DIDService {
     this.closePC();
 
     console.log('Creating a new stream...');
-    try {
-      const sessionResponse = await this.fetchWithRetries(
-        `${this.DID_API.url}/${this.DID_API.service}/streams`,
-        {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify({
-            source_url: this.sourceUrl,
-          }),
-        }
-      );
-
-      const {
-        id: newStreamId,
-        offer,
-        ice_servers: iceServers,
-        session_id: newSessionId,
-      } = await sessionResponse.json();
-      this.sharedService.setStreamId(newStreamId);
-      this.sharedService.setSessionId(newSessionId);
-
-      try {
-        const sessionClientAnswer = await this.createPeerConnection(
-          offer,
-          iceServers
-        );
-        await this.startStream(sessionClientAnswer);
-      } catch (error) {
-        console.error('Error during streaming setup:', error);
-        this.stopAllStreams();
-        this.closePC();
-        throw error;
+    const sessionResponse = await this.fetchWithRetries(
+      `${this.DID_API.url}/${this.DID_API.service}/streams`,
+      {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          source_url: this.sourceUrl,
+        }),
       }
+    );
+
+    const {
+      id: newStreamId,
+      offer,
+      ice_servers: iceServers,
+      session_id: newSessionId,
+    } = await sessionResponse.json();
+    this.streamId = newStreamId;
+    this.sessionId = newSessionId;
+
+    try {
+      const sessionClientAnswer = await this.createPeerConnection(
+        offer,
+        iceServers
+      );
+      await this.startStream(sessionClientAnswer);
     } catch (error) {
-      console.error('Error connecting to stream:', error);
-      throw error;
+      console.error('Error during streaming setup:', error);
+      this.stopAllStreams();
+      this.closePC();
+      return;
     }
   }
 
   private async startStream(sessionClientAnswer: RTCSessionDescriptionInit) {
-    const streamId = await firstValueFrom(this.sharedService.streamId$);
-    const sessionId = await firstValueFrom(this.sharedService.sessionId$);
-
-    if (!streamId) {
-      throw new Error('Stream ID is not set.');
-    }
-
     console.log('Starting stream...');
     const response = await fetch(
-      `${this.DID_API.url}/${this.DID_API.service}/streams/${streamId}/sdp`,
+      `${this.DID_API.url}/${this.DID_API.service}/streams/${this.streamId}/sdp`,
       {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
           answer: sessionClientAnswer,
-          session_id: sessionId,
+          session_id: this.sessionId,
         }),
       }
     );
@@ -175,15 +157,8 @@ export class DIDService {
 
   private async sendIceCandidate(candidate: RTCIceCandidate) {
     const { candidate: candidateStr, sdpMid, sdpMLineIndex } = candidate;
-    const streamId = await firstValueFrom(this.sharedService.streamId$);
-    const sessionId = await firstValueFrom(this.sharedService.sessionId$);
-
-    if (!streamId || !sessionId) {
-      throw new Error('Stream ID or Session ID is not set.');
-    }
-
     const response = await fetch(
-      `${this.DID_API.url}/talks/streams/${streamId}/ice`,
+      `${this.DID_API.url}/talks/streams/${this.streamId}/ice`,
       {
         method: 'POST',
         headers: this.getHeaders(),
@@ -191,7 +166,7 @@ export class DIDService {
           candidate: candidateStr,
           sdpMid,
           sdpMLineIndex,
-          session_id: sessionId,
+          session_id: this.sessionId,
         }),
       }
     );
@@ -200,13 +175,8 @@ export class DIDService {
 
   private onTrack(event: RTCTrackEvent) {
     if (event.streams && event.streams[0]) {
-      this.sharedService.setVideoStream(event.streams[0]);
-      this.sharedService.setStreamInitialized(true);
+      this.videoStreamSubject.next(event.streams[0]);
     }
-  }
-
-  getVideoStream(): MediaStream | null {
-    return this.currentVideoStream;
   }
 
   closeStream() {
@@ -216,18 +186,15 @@ export class DIDService {
     if (this.dataChannel) {
       this.dataChannel.close();
     }
-    this.sharedService.setVideoStream(null);
+    this.videoStreamSubject.next(null);
   }
 
   stopAllStreams() {
-    const currentStream = firstValueFrom(this.sharedService.videoStream$);
-    if (currentStream) {
-      currentStream.then((stream) => {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-          this.sharedService.setVideoStream(null);
-        }
-      });
+    if (this.videoStreamSubject.value) {
+      this.videoStreamSubject.value
+        .getTracks()
+        .forEach((track) => track.stop());
+      this.videoStreamSubject.next(null);
     }
   }
 
@@ -238,17 +205,45 @@ export class DIDService {
     }
   }
 
-  async sendMessageToChat(messageText: string): Promise<void> {
-    const streamId = await firstValueFrom(this.sharedService.streamId$);
-    const sessionId = await firstValueFrom(this.sharedService.sessionId$);
+  getVideoStream(): Observable<MediaStream | null> {
+    return this.videoStreamSubject.asObservable();
+  }
 
-    if (!streamId || !sessionId) {
-      throw new Error('Stream ID or Session ID is not set.');
-    }
+  private async fetchWithRetries(
+    url: string,
+    options: RequestInit,
+    retries = 1
+  ): Promise<Response> {
+    const maxRetryCount = 5;
+    const maxDelaySec = 10;
 
     try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (retries <= maxRetryCount) {
+        const delay =
+          Math.min(Math.pow(2, retries) / 4 + Math.random(), maxDelaySec) *
+          1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        console.log(`Retrying ${retries}/${maxRetryCount}. ${err}`);
+        return this.fetchWithRetries(url, options, retries + 1);
+      } else {
+        throw new Error(`Max retries exceeded. error: ${err}`);
+      }
+    }
+  }
+
+  // async makeItTalk(messageText :string) {
+  //     console.log(`Sending message ${messageText}`)
+  //     const reply:string = await this.callVoiceFlowAPI(messageText);
+  //     console.log(`reply received ${reply}`)
+  //     this.sendMessageToChat(reply);
+  // }
+
+  async sendMessageToChat(messageText: string): Promise<void> {
+    try {
       const response = await this.fetchWithRetries(
-        `${this.DID_API.url}/talks/streams/${streamId}`,
+        `${this.DID_API.url}/talks/streams/${this.streamId}`,
         {
           method: 'POST',
           headers: this.getHeaders(),
@@ -267,7 +262,7 @@ export class DIDService {
               pad_audio: '0.0',
             },
             audio_optimization: '2',
-            session_id: sessionId,
+            session_id: this.sessionId,
           }),
         }
       );
@@ -316,36 +311,5 @@ export class DIDService {
       .catch((error) => {
         console.error('Error in voiceflow:', error);
       });
-  }
-
-  private async fetchWithRetries(
-    url: string,
-    options: RequestInit,
-    retries = 1
-  ): Promise<Response> {
-    const maxRetryCount = 5;
-    const maxDelaySec = 10;
-
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Rate limit exceeded');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response;
-    } catch (err) {
-      if (retries <= maxRetryCount) {
-        const delay =
-          Math.min(Math.pow(2, retries) / 4 + Math.random(), maxDelaySec) *
-          1000;
-        console.log(`Retrying ${retries}/${maxRetryCount}. ${err}`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        return this.fetchWithRetries(url, options, retries + 1);
-      } else {
-        throw new Error(`Max retries exceeded. error: ${err}`);
-      }
-    }
   }
 }
