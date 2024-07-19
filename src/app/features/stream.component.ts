@@ -42,25 +42,27 @@ import { isPlatformBrowser, NgIf } from '@angular/common';
         position: relative;
         width: 100%;
         height: 100vh;
-        overflow: hidden;
+        overflow: scroll;
       }
       .background-image {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: url('https://i.ibb.co/HhRWmvs/Bosland-Env-Ai-Avatar-V5-min-compressed.jpg');
+        width: 768px;
+        height: 2048px;
+        background-image: url('https://i.ibb.co/gdQpch9/Bosland-Env-Ai-Avatar-V6-resized.jpg');
         background-position: center;
         background-size: cover;
+        left: 50%;
+        transform: translate(-50%, -0%);
       }
       .video-container {
         position: absolute;
-        top: 50%;
+        top: 0;
         left: 50%;
-        transform: translate(-50%, -50%);
-        width: 100%;
-        height: 100%;
+        transform: translate(-50%, -0%);
+        width: 768px;
+        height: 2048px;
         display: flex;
         justify-content: center;
         align-items: center;

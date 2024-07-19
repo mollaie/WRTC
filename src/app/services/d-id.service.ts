@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { API_KEY, VF_API_KEY, VF_VERSION } from '../../../config';
+import { API_KEY, IMAGE_URL, VF_API_KEY, VF_VERSION } from '../../../config';
 import { SharedService } from './shared.service';
 import { firstValueFrom, take } from 'rxjs';
 
@@ -24,8 +24,7 @@ export class DIDService {
     userId: 'Bosland-user',
   };
 
-  private sourceUrl =
-    'https://i.ibb.co/HhRWmvs/Bosland-Env-Ai-Avatar-V5-min-compressed.jpg';
+  private sourceUrl = IMAGE_URL;
 
   constructor(private sharedService: SharedService) {}
 
