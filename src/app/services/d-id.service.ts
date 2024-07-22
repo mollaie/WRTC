@@ -3,6 +3,7 @@ import { API_KEY, IMAGE_URL, VF_API_KEY, VF_VERSION } from '../../../config';
 import { SharedService } from './shared.service';
 import { firstValueFrom, take } from 'rxjs';
 import { query } from 'express';
+import { SampleImageOne } from '../image.config';
 
 @Injectable({
   providedIn: 'root',
@@ -27,7 +28,7 @@ export class DIDService {
     userId: 'Bosland-101',
   };
 
-  private sourceUrl = IMAGE_URL;
+  private sourceUrl = SampleImageOne;
 
   constructor(private sharedService: SharedService) {}
 
