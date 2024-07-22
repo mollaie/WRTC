@@ -13,49 +13,53 @@ import { Subscription } from 'rxjs';
 import { DIDService } from '../services/d-id.service';
 import { SharedService } from '../services/shared.service';
 import { isPlatformBrowser, NgIf } from '@angular/common';
-import { SampleImageOne } from '../image.config';
+import { SampleImageOne, SampleImageThree, SampleImageTwo } from '../image.config';
 
 @Component({
   selector: 'app-stream',
   template: `
-    <div class="container" #container>
-      <div class="background-image"></div>
+  <div class="body-container">
+
+    <img [src]="imgSrc" *ngIf="!streamLoaded"/>
+      <video
+        #videoPlayer
+        [class.visible]="videoLoaded"
+        (loadedmetadata)="onVideoMetadataLoaded()"
+        (error)="onVideoError()"
+        autoplay
+        playsinline
+        muted="muted"
+      >
+        Your browser does not support the video tag.
+      </video>
+</div>
+    <!-- <div class="container" #container> -->
+      <!-- <div class="background-image"></div>
       <div class="video-container">
-        <video
-          #videoPlayer
-          [class.visible]="videoLoaded"
-          (loadedmetadata)="onVideoMetadataLoaded()"
-          (error)="onVideoError()"
-          autoplay
-          playsinline
-        >
-          Your browser does not support the video tag.
-        </video>
       </div>
       <div *ngIf="errorMessage" class="error-message">
         {{ errorMessage }}
-      </div>
-    </div>
+      </div> -->
+    <!-- </div> -->
   `,
   styles: [
     `
       .container {
         position: relative;
-        width: 100%;
-        height: 100vh;
+        width: 1024px;
+        height: 2048px;
         overflow: scroll;
       }
       .background-image {
-        // position: absolute;
-        // top: 0;
-        // left: 0;
-        width: 100%;
-        height: 100%;
-        //background-image: url(SampleImageOne);
-        //background-position: center;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1024px;
+        height: 2048px;
+        background-position: center;
         background-size: cover;
-        // left: 50%;
-        // transform: translate(-50%, -0%);
+        left: 50%;
+        transform: translate(-50%, -0%);
       }
       .video-container {
         position: absolute;
@@ -68,13 +72,13 @@ import { SampleImageOne } from '../image.config';
         justify-content: center;
         align-items: center;
       }
-      video {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        opacity: 0;
-        transition: opacity 0.5s ease-in-out;
-      }
+      // video {
+      //   max-width: 100%;
+      //   max-height: 100%;
+      //   object-fit: contain;
+      //   opacity: 0;
+      //   transition: opacity 0.5s ease-in-out;
+      // }
       video.visible {
         opacity: 1;
       }
@@ -93,7 +97,7 @@ import { SampleImageOne } from '../image.config';
   standalone: true,
   imports: [NgIf],
 })
-export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
+export class StreamComponent implements OnInit, OnDestroy {
   @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
   private streamSubscription: Subscription | undefined;
@@ -101,6 +105,8 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
   isBrowser: boolean = false;
   errorMessage: string | null = null;
   isLoaded = false;
+  imgSrc = SampleImageThree;
+  streamLoaded = false;
 
   constructor(
     private didService: DIDService,
@@ -108,20 +114,9 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-    if (this.isBrowser) {
-      const backgroundImage = document.querySelector(
-        '.background-image'
-      ) as HTMLElement;
-      if (backgroundImage) {
-        backgroundImage.style.backgroundImage = `url(${SampleImageOne})`;
-      }
-    }
+
   }
 
-  @HostListener('window:resize')
-  onResize() {
-    this.adjustVideoPosition();
-  }
 
   async ngOnInit() {
     if (this.isBrowser) {
@@ -131,6 +126,7 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
           async (stream) => {
             if (stream) {
               this.videoPlayer.nativeElement.srcObject = stream;
+              this.videoPlayer.nativeElement.muted = false;
               this.videoLoaded = true;
               this.errorMessage = null;
             } else {
@@ -145,11 +141,6 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  ngAfterViewInit() {
-    if (this.isBrowser) {
-      this.adjustVideoPosition();
-    }
-  }
 
   ngOnDestroy() {
     if (this.streamSubscription) {
@@ -169,16 +160,18 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onVideoMetadataLoaded() {
     console.log('Video metadata loaded');
-    this.adjustVideoPosition();
     this.playVideo();
+
   }
 
   playVideo() {
     const playPromise = this.videoPlayer.nativeElement.play();
     if (playPromise !== undefined) {
+      this.streamLoaded = true;
       playPromise.catch((error) => {
         console.error('Error playing video:', error);
         this.handleError(error);
+        this.streamLoaded = false
       });
     }
   }
@@ -203,21 +196,4 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  adjustVideoPosition() {
-    const video = this.videoPlayer.nativeElement;
-    const container = this.container.nativeElement;
-
-    const containerAspect = container.clientWidth / container.clientHeight;
-    const videoAspect = video.videoWidth / video.videoHeight;
-
-    if (containerAspect > videoAspect) {
-      // Container is wider than video
-      video.style.width = 'auto';
-      video.style.height = '100%';
-    } else {
-      // Container is taller than video
-      video.style.width = '100%';
-      video.style.height = 'auto';
-    }
-  }
 }

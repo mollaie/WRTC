@@ -3,7 +3,7 @@ import { API_KEY, IMAGE_URL, VF_API_KEY, VF_VERSION } from '../../../config';
 import { SharedService } from './shared.service';
 import { firstValueFrom, take } from 'rxjs';
 import { query } from 'express';
-import { SampleImageOne } from '../image.config';
+import { SampleImageOne, SampleImageThree, SampleImageTwo } from '../image.config';
 
 @Injectable({
   providedIn: 'root',
@@ -28,7 +28,7 @@ export class DIDService {
     userId: 'Bosland-101',
   };
 
-  private sourceUrl = SampleImageOne;
+  private sourceUrl = SampleImageThree;
 
   constructor(private sharedService: SharedService) {}
 
@@ -37,6 +37,7 @@ export class DIDService {
       accept: 'application/json',
       authorization: `Basic ${this.DID_API.key}`,
       'Content-Type': 'application/json',
+      'x-api-key-external':JSON.stringify({"elevenlabs": "sk_5c7d8cb20926181edde874ecfebcdd71052f298910107aa3"})
     };
   }
 
@@ -83,6 +84,10 @@ export class DIDService {
           headers: this.getHeaders(),
           body: JSON.stringify({
             source_url: this.sourceUrl,
+            driver_url: "bank://natural/driver-1",
+            config:{ 
+              stitck:true
+            }
           }),
         }
       );
@@ -265,8 +270,9 @@ export class DIDService {
             script: {
               type: 'text',
               provider: {
-                type: 'microsoft',
-                voice_id: 'en-US-JennyNeural',
+                type: 'elevenlabs',
+                voice_id: 'E6XkWW2dthuQlhvLR9mY',
+                //voice_id: '21m00Tcm4TlvDq8ikWAM',
               },
               ssml: 'false',
               input: messageText,
@@ -276,7 +282,7 @@ export class DIDService {
               pad_audio: '0.0',
               stitch: true,
             },
-            driver_url: 'bank://stitch/driver-01',
+            driver_url: "bank://natural/driver-1",
             audio_optimization: '2',
             session_id: sessionId,
           }),
