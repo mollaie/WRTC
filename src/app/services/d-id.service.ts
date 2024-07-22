@@ -244,6 +244,12 @@ export class DIDService {
     const streamId = await firstValueFrom(this.sharedService.streamId$);
     const sessionId = await firstValueFrom(this.sharedService.sessionId$);
 
+    this.sharedService.addMessage({
+      text: messageText,
+      isMe: false,
+      time: new Date(),
+    });
+
     if (!streamId || !sessionId) {
       throw new Error('Stream ID or Session ID is not set.');
     }
@@ -304,9 +310,9 @@ export class DIDService {
           confidence: 1,
           query: questionText,
           intent: {
-            name: "None"
-          }
-        }
+            name: 'None',
+          },
+        },
       },
       // state: this.lastState,
     };
@@ -317,21 +323,21 @@ export class DIDService {
         tts: true,
       },
       action: {
-        type: "launch"
-      }
+        type: 'launch',
+      },
     };
 
     console.log('Calling voiceflow');
     // console.log(this.VOICEFLOW_API.version)
     // console.log(this.firstRequest)
-    var bodyData
+    var bodyData;
     if (this.firstRequest) {
       this.firstRequest = false;
-      bodyData = firstRequestData
+      bodyData = firstRequestData;
     } else {
-      bodyData = requestData
+      bodyData = requestData;
     }
-    console.log(JSON.stringify(bodyData))
+    console.log(JSON.stringify(bodyData));
     fetch(
       `${this.VOICEFLOW_API.url}/user/${this.VOICEFLOW_API.userId}/interact`,
       //`${this.VOICEFLOW_API.second_url}/${this.VOICEFLOW_API.version}`,
@@ -340,8 +346,8 @@ export class DIDService {
         headers: {
           Authorization: this.VOICEFLOW_API.key,
           'content-type': 'application/json',
-          'versionID': this.VOICEFLOW_API.version,
-          'accept':'application/json, text/plain, */*'
+          versionID: this.VOICEFLOW_API.version,
+          accept: 'application/json, text/plain, */*',
         },
         body: JSON.stringify(bodyData),
       }
@@ -350,9 +356,19 @@ export class DIDService {
       .then((data) => {
         //console.log('Success:', data[1].payload.message);
         //this.sendMessageToChat(data[1].payload.message);
-        console.log('Success:', data['state']['variables']['last_response']);
-        this.sendMessageToChat(data['state']['variables']['last_response']);
-        this.lastState = data['state'];
+        const result = data;
+        if (Array.isArray(result)) {
+          const messageIndex = result.findIndex((r) => r.type === 'text');
+          if (messageIndex !== -1) {
+            const message = result[messageIndex].payload.message;
+            console.log(message);
+            this.sendMessageToChat(message);
+          }
+        } else {
+          console.log('Success:', data['state']['variables']['last_response']);
+          this.sendMessageToChat(data['state']['variables']['last_response']);
+          this.lastState = data['state'];
+        }
       })
       .catch((error) => {
         console.error('Error in voiceflow:', error);
