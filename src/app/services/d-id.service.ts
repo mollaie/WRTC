@@ -10,7 +10,7 @@ export class DIDService {
   private peerConnection!: RTCPeerConnection;
   private dataChannel!: RTCDataChannel;
   private currentVideoStream: MediaStream | null = null;
-
+  private lastState = {};
   private DID_API = {
     url: 'https://api.d-id.com',
     key: API_KEY,
@@ -22,7 +22,7 @@ export class DIDService {
     second_url: 'https://general-runtime.voiceflow.com/interact',
     key: VF_API_KEY,
     version: VF_VERSION,
-    userId: 'Bosland-user',
+    userId: 'Bosland-100',
   };
 
   private sourceUrl = IMAGE_URL;
@@ -290,10 +290,15 @@ export class DIDService {
 
   async callVoiceFlowAPI(questionText: string) {
     const requestData = {
+      config: {
+        excludeTypes: ['speaker'],
+        tts: true,
+      },
       request: {
         type: 'text',
         payload: questionText,
       },
+      state: this.lastState,
     };
 
     console.log('Calling voiceflow');
@@ -311,10 +316,11 @@ export class DIDService {
     )
       .then((response) => response.json())
       .then((data) => {
-        // console.log('Success:', data[1].payload.message);
-        // this.sendMessageToChat(data[1].payload.message);
+        //console.log('Success:', data[1].payload.message);
+        //this.sendMessageToChat(data[1].payload.message);
         console.log('Success:', data['state']['variables']['last_response']);
         this.sendMessageToChat(data['state']['variables']['last_response']);
+        this.lastState = data['state'];
       })
       .catch((error) => {
         console.error('Error in voiceflow:', error);
