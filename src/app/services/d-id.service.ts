@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { API_KEY, IMAGE_URL, VF_API_KEY, VF_VERSION } from '../../../config';
 import { SharedService } from './shared.service';
 import { firstValueFrom, take } from 'rxjs';
+import { query } from 'express';
 
 @Injectable({
   providedIn: 'root',
@@ -11,6 +12,7 @@ export class DIDService {
   private dataChannel!: RTCDataChannel;
   private currentVideoStream: MediaStream | null = null;
   private lastState = {};
+  private firstRequest = true;
   private DID_API = {
     url: 'https://api.d-id.com',
     key: API_KEY,
@@ -22,7 +24,7 @@ export class DIDService {
     second_url: 'https://general-runtime.voiceflow.com/interact',
     key: VF_API_KEY,
     version: VF_VERSION,
-    userId: 'Bosland-100',
+    userId: 'Bosland-101',
   };
 
   private sourceUrl = IMAGE_URL;
@@ -242,6 +244,12 @@ export class DIDService {
     const streamId = await firstValueFrom(this.sharedService.streamId$);
     const sessionId = await firstValueFrom(this.sharedService.sessionId$);
 
+    this.sharedService.addMessage({
+      text: messageText,
+      isMe: false,
+      time: new Date(),
+    });
+
     if (!streamId || !sessionId) {
       throw new Error('Stream ID or Session ID is not set.');
     }
@@ -294,33 +302,73 @@ export class DIDService {
         excludeTypes: ['speaker'],
         tts: true,
       },
-      request: {
-        type: 'text',
-        payload: questionText,
+      action: {
+        // type: 'text',
+        // payload: questionText,
+        type: 'intent',
+        payload: {
+          confidence: 1,
+          query: questionText,
+          intent: {
+            name: 'None',
+          },
+        },
       },
-      state: this.lastState,
+      // state: this.lastState,
+    };
+
+    const firstRequestData = {
+      config: {
+        excludeTypes: ['speaker'],
+        tts: true,
+      },
+      action: {
+        type: 'launch',
+      },
     };
 
     console.log('Calling voiceflow');
+    // console.log(this.VOICEFLOW_API.version)
+    // console.log(this.firstRequest)
+    var bodyData;
+    if (this.firstRequest) {
+      this.firstRequest = false;
+      bodyData = firstRequestData;
+    } else {
+      bodyData = requestData;
+    }
+    console.log(JSON.stringify(bodyData));
     fetch(
-      //`${this.VOICEFLOW_API.url}/${this.VOICEFLOW_API.version}/user/${this.VOICEFLOW_API.userId}/interact`,
-      `${this.VOICEFLOW_API.second_url}/${this.VOICEFLOW_API.version}`,
+      `${this.VOICEFLOW_API.url}/user/${this.VOICEFLOW_API.userId}/interact`,
+      //`${this.VOICEFLOW_API.second_url}/${this.VOICEFLOW_API.version}`,
       {
         method: 'POST',
         headers: {
           Authorization: this.VOICEFLOW_API.key,
-          'Content-Type': 'application/json',
+          'content-type': 'application/json',
+          versionID: this.VOICEFLOW_API.version,
+          accept: 'application/json, text/plain, */*',
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify(bodyData),
       }
     )
       .then((response) => response.json())
       .then((data) => {
         //console.log('Success:', data[1].payload.message);
         //this.sendMessageToChat(data[1].payload.message);
-        console.log('Success:', data['state']['variables']['last_response']);
-        this.sendMessageToChat(data['state']['variables']['last_response']);
-        this.lastState = data['state'];
+        const result = data;
+        if (Array.isArray(result)) {
+          const messageIndex = result.findIndex((r) => r.type === 'text');
+          if (messageIndex !== -1) {
+            const message = result[messageIndex].payload.message;
+            console.log(message);
+            this.sendMessageToChat(message);
+          }
+        } else {
+          console.log('Success:', data['state']['variables']['last_response']);
+          this.sendMessageToChat(data['state']['variables']['last_response']);
+          this.lastState = data['state'];
+        }
       })
       .catch((error) => {
         console.error('Error in voiceflow:', error);

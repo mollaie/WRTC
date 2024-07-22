@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
   BehaviorSubject,
@@ -8,6 +8,7 @@ import {
   lastValueFrom,
 } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
+import { SharedService } from './shared.service';
 
 @Injectable({
   providedIn: 'root',
@@ -20,6 +21,7 @@ export class AudioService {
   private readonly silenceDuration = 2; // in seconds
   private isRecordingSubject = new BehaviorSubject<boolean>(false);
   private transcriptionSubject = new Subject<{ text: string }>();
+  private sharedService = inject(SharedService);
 
   constructor(
     private http: HttpClient,
