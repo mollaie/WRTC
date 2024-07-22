@@ -274,7 +274,9 @@ export class DIDService {
             config: {
               fluent: 'false',
               pad_audio: '0.0',
+              stitch: true,
             },
+            driver_url: 'bank://stitch/driver-01',
             audio_optimization: '2',
             session_id: sessionId,
           }),
