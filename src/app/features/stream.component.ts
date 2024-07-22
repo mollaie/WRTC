@@ -13,6 +13,7 @@ import { Subscription } from 'rxjs';
 import { DIDService } from '../services/d-id.service';
 import { SharedService } from '../services/shared.service';
 import { isPlatformBrowser, NgIf } from '@angular/common';
+import { SampleImageOne } from '../image.config';
 
 @Component({
   selector: 'app-stream',
@@ -45,24 +46,24 @@ import { isPlatformBrowser, NgIf } from '@angular/common';
         overflow: scroll;
       }
       .background-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 768px;
-        height: 2048px;
-        background-image: url('https://i.ibb.co/gdQpch9/Bosland-Env-Ai-Avatar-V6-resized.jpg');
-        background-position: center;
+        // position: absolute;
+        // top: 0;
+        // left: 0;
+        width: 100%;
+        height: 100%;
+        //background-image: url(SampleImageOne);
+        //background-position: center;
         background-size: cover;
-        left: 50%;
-        transform: translate(-50%, -0%);
+        // left: 50%;
+        // transform: translate(-50%, -0%);
       }
       .video-container {
         position: absolute;
         top: 0;
-        left: 50%;
-        transform: translate(-50%, -0%);
-        width: 768px;
-        height: 2048px;
+        // left: 50%;
+        // transform: translate(-50%, -0%);
+        width: 100%;
+        height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -107,6 +108,14 @@ export class StreamComponent implements OnInit, OnDestroy, AfterViewInit {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+    if (this.isBrowser) {
+      const backgroundImage = document.querySelector(
+        '.background-image'
+      ) as HTMLElement;
+      if (backgroundImage) {
+        backgroundImage.style.backgroundImage = `url(${SampleImageOne})`;
+      }
+    }
   }
 
   @HostListener('window:resize')
